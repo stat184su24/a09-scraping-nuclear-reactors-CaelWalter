@@ -1,6 +1,6 @@
 ---
 title: "Activity: Nuclear Reactors"
-author: "YOUR NAME HERE"
+author: "Cael Walter"
 output: html_notebook
 ---
 
@@ -14,6 +14,29 @@ library(tidyverse)
 ```{r}
 #My code here.... 
 
+library(rvest)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+
+
+page <- read_html("https://en.wikipedia.org/wiki/List_of_commercial_nuclear_reactors")
+tableList <- page %>%
+  html_nodes(css = "table") %>%
+  html_table(fill = TRUE)
+
+
+
+
+length(tableList)
+
+head(tableList[[21]])
+
+japan_table <- tableList[[21]]
+
+
+head(japan_table)
+
 
 ```
 
@@ -21,12 +44,63 @@ library(tidyverse)
 ## Your turn: In what ways is the table tidy? How is it not tidy? What’s different about it from a tidy table?
 
 My answer here..... 
+1. Single Data Type per Column: Each column in the table contains a single type of data (e.g., reactor names, unit numbers, types, capacities, dates).
+2. Consistent Units: Numerical values, such as capacity in megawatts (MW), are consistently used throughout the table.
+3. Header Row: The table has a clear header row that labels each column, making the data easier to understand and work with.
+
+In What Ways is the Table Not Tidy?
+1. Non-Standard Header Row: The first row of the table is a continuation of the variable names, which should be part of the header instead of the data.
+2. Mixed Data Types in Columns: Some columns may contain mixed data types (e.g., numerical and textual descriptions in the "Status" column).
+3. Redundant Variable Names: Some variable names are redundant, such as having both "Capacity (MW)" and "Capacity in MW."
+4. Multiple Words in Column Names: Column names with spaces and special characters can complicate data manipulation.
+
+Differences from a Tidy Table
+A tidy table, as defined in the principles of tidy data, should have the following characteristics:
+
+Each Variable is a Column: In the given table, this principle is followed reasonably well.
+Each Observation is a Row: The table mostly adheres to this principle, but the presence of non-data rows (like the continuation of the header) violates this rule.
+Each Type of Observational Unit Forms a Table: This table mixes different types of data (such as reactor specifications and operational statuses), which might be better organized into separate tables for clarity.
 
 
 ## Your Turn: Plot Net Generation Capacity vs Construction Date
 
 ```{r}
 #my code here 
+
+japan_table_clean <- japan_table %>%
+  slice(-1) %>%  
+  rename(
+    name = `Plantname`,
+    unit_no = `UnitNo.`,
+    reactor_type = `Type`,
+    reactor_model = `Model`,
+    status = `Status`,
+    capacity_mw = `Capacity(MW)`,
+    begin_building = `Beginbuilding`,
+    commercial_operation = `Commercialoperation`,
+    closure = `Closed`
+  ) %>%
+  mutate(
+    capacity_mw = as.numeric(capacity_mw),
+    begin_building = dmy(begin_building),
+    commercial_operation = dmy(commercial_operation),
+    closure = dmy(closure)
+  )
+
+
+head(japan_table_clean)
+
+# Plot Net Generation Capacity vs. Construction Date
+ggplot(japan_table_clean, aes(x = begin_building, y = capacity_mw, color = reactor_type)) +
+  geom_point() +
+  labs(title = "Net Generation Capacity vs. Construction Date",
+       x = "Construction Start Date",
+       y = "Net Generation Capacity (MW)") +
+  theme_minimal()
+
+
+
+
 
 
 ```
@@ -37,6 +111,53 @@ My answer here.....
 ```{r}
 #my code here... 
 
+china_table <- tableList[[10]]  
+
+
+head(china_table)
+
+
+china_table_clean <- china_table %>%
+  slice(-1) %>%  # Remove the first row which is not data
+  rename(
+    name = `Plantname`,
+    unit_no = `UnitNo.`,
+    reactor_type = `Type`,
+    reactor_model = `Model`,
+    status = `Status`,
+    capacity_mw = `Capacity(MW)`,
+    begin_building = `Beginbuilding`,
+    commercial_operation = `Commercialoperation`,
+    closure = `Closed`
+  ) %>%
+  mutate(
+    capacity_mw = as.numeric(capacity_mw),
+    begin_building = dmy(begin_building),
+    commercial_operation = dmy(commercial_operation),
+    closure = dmy(closure)
+  ) %>%
+  mutate(country = "China")
+
+
+japan_table_clean <- japan_table_clean %>%
+  mutate(country = "Japan")
+
+
+
+japan_table_clean <- japan_table_clean %>% 
+  mutate(unit_no = as.character(unit_no))
+
+china_table_clean <- china_table_clean %>%
+  mutate(unit_no = as.character(unit_no))
+
+
+combined_table <- bind_rows(
+  japan_table_clean %>% mutate(country = "Japan"), 
+  china_table_clean %>% mutate(country = "China")
+)
+
+head(combined_table)
+
 ```
 
 
@@ -45,5 +166,10 @@ My answer here.....
 
 ```{r}
 #My code here
-
+ggplot(japan_table_clean, aes(x = begin_building, xend = commercial_operation, y = name, yend = name)) +
+  geom_segment(aes(color = reactor_type), size = 1) +
+  labs(title = "Time Interval from Start of Construction to Operation",
+       x = "Date",
+       y = "Reactor Name") +
+  theme_minimal()
 ```
